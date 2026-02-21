@@ -152,5 +152,5 @@ The clipping sensor uses HomeKit's Motion Sensor accessory type — it fires whe
 
 ## Related
 
-- [`sugarcube_client.py`](../sugarcube_client.py) — Python CLI and library for the same API
-- [`sugarcube_menubar.py`](../sugarcube_menubar.py) — macOS menu bar app
+- [`sugarcube_client.py`](https://github.com/DNSGeek/Python-SugarCube/blob/main/sugarcube_client.py) — Python CLI and library for the same API
+- [`sugarcube_menubar.py`](https://github.com/DNSGeek/Python-SugarCube/blob/main/sugarcube_menubar.py) — macOS menu bar app
