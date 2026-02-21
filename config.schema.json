@@ -1,0 +1,85 @@
+{
+  "pluginAlias": "SugarCube",
+  "pluginType": "platform",
+  "singular": false,
+  "headerDisplay": "Control SweetVinyl SugarCube vinyl restoration devices from HomeKit.",
+  "footerDisplay": "For help see the [README](https://github.com/your-repo/homebridge-sugarcube).",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Platform Name",
+        "type": "string",
+        "default": "SugarCube",
+        "required": true
+      },
+      "devices": {
+        "title": "Devices",
+        "type": "array",
+        "items": {
+          "title": "Device",
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Device Name",
+              "type": "string",
+              "required": true,
+              "placeholder": "Living Room SugarCube",
+              "description": "Display name shown in the Home app."
+            },
+            "url": {
+              "title": "Device URL",
+              "type": "string",
+              "required": true,
+              "placeholder": "http://10.10.0.168",
+              "description": "IP address or hostname of the SugarCube. Port 5123 is added automatically if omitted."
+            },
+            "pin": {
+              "title": "Pairing PIN",
+              "type": "string",
+              "placeholder": "1111",
+              "description": "4-digit PIN shown on the device display. Only needed on first run — the session cookie is saved automatically."
+            },
+            "pollInterval": {
+              "title": "Poll Interval (seconds)",
+              "type": "integer",
+              "default": 10,
+              "minimum": 5,
+              "maximum": 300,
+              "description": "How often to poll the device for status updates."
+            },
+            "timeout": {
+              "title": "Request Timeout (seconds)",
+              "type": "integer",
+              "default": 10,
+              "minimum": 3,
+              "maximum": 60,
+              "description": "HTTP request timeout in seconds."
+            }
+          }
+        }
+      }
+    }
+  },
+  "layout": [
+    {
+      "type": "fieldset",
+      "title": "Devices",
+      "expandable": true,
+      "expanded": true,
+      "items": [
+        {
+          "key": "devices",
+          "type": "array",
+          "items": [
+            "devices[].name",
+            "devices[].url",
+            "devices[].pin",
+            "devices[].pollInterval",
+            "devices[].timeout"
+          ]
+        }
+      ]
+    }
+  ]
+}
