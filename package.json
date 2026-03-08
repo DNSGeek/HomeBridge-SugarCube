@@ -1,6 +1,6 @@
 {
   "name": "homebridge-sugarcube",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "HomeBridge plugin for SweetVinyl SugarCube vinyl restoration devices",
   "license": "MIT",
   "main": "dist/index.js",
@@ -18,18 +18,18 @@
     "prepublishOnly": "npm run build"
   },
   "engines": {
-    "node": ">=18.0.0",
-    "homebridge": ">=1.6.0"
+    "node": "^18.20.4 || ^20.15.1 || ^22",
+    "homebridge": "^1.6.0 || ^2.0.0-beta.0"
   },
   "dependencies": {
     "node-fetch": "^3.3.2"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
-    "homebridge": "^1.6.0",
+    "homebridge": "^1.6.0 || ^2.0.0-beta.0",
     "typescript": "^5.0.0"
-  },
-  "peerDependencies": {
-    "homebridge": "^1.6.0"
-  }
+},
+"peerDependencies": {
+    "homebridge": "^1.6.0 || ^2.0.0-beta.0"
+}
 }
