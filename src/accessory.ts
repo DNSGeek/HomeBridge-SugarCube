@@ -323,7 +323,9 @@ export class SugarCubeAccessory {
     // Skip polls while a reboot is in progress; the grace period timer
     // will clear this flag once the device should be back up.
     if (this.rebootInProgress) {
-      this.log.debug(`[${this.config.name}] Poll skipped — reboot in progress.`);
+      this.log.debug(
+        `[${this.config.name}] Poll skipped — reboot in progress.`,
+      );
       return;
     }
 
@@ -372,7 +374,9 @@ export class SugarCubeAccessory {
     // Resume polling after the grace period regardless of whether the
     // reboot command succeeded — the device may have self-recovered.
     setTimeout(() => {
-      this.log.info(`[${this.config.name}] Grace period over — resuming polls.`);
+      this.log.info(
+        `[${this.config.name}] Grace period over — resuming polls.`,
+      );
       this.rebootInProgress = false;
     }, REBOOT_GRACE_PERIOD_MS);
   }
