@@ -1,6 +1,6 @@
-import { API } from 'homebridge';
-import { PLATFORM_NAME } from './settings';
-import { SugarCubePlatform } from './platform';
+import { API } from "homebridge";
+import { PLATFORM_NAME } from "./settings";
+import { SugarCubePlatform } from "./platform";
 
 /**
  * This is the entry point HomeBridge calls when loading the plugin.

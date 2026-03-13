@@ -6,14 +6,14 @@ A [HomeBridge](https://homebridge.io) plugin for [SweetVinyl SugarCube](https://
 
 Each SugarCube device exposes six accessories in HomeKit:
 
-| Accessory | Type | Description |
-|-----------|------|-------------|
-| **Click Repair** | Switch | Turn click repair on or off |
-| **Repair Sensitivity** | Light | Brightness slider controls sensitivity level 1–10 |
-| **Noise Reduction** | Switch | Turn noise reduction on or off |
-| **Denoise Level** | Light | Brightness slider controls denoise level 1–10 |
-| **Recording** | Switch | Start or stop recording |
-| **Clipping** | Motion Sensor | Triggers when clipping is detected |
+| Accessory              | Type          | Description                                       |
+| ---------------------- | ------------- | ------------------------------------------------- |
+| **Click Repair**       | Switch        | Turn click repair on or off                       |
+| **Repair Sensitivity** | Light         | Brightness slider controls sensitivity level 1–10 |
+| **Noise Reduction**    | Switch        | Turn noise reduction on or off                    |
+| **Denoise Level**      | Light         | Brightness slider controls denoise level 1–10     |
+| **Recording**          | Switch        | Start or stop recording                           |
+| **Clipping**           | Motion Sensor | Triggers when clipping is detected                |
 
 > **Why lights for the sliders?** HomeKit does not have a generic 1–10 slider accessory type. The Lightbulb's Brightness characteristic is the standard workaround — you'll see a slider in the Home app. The light's on/off state mirrors the corresponding switch, so they stay in sync.
 
@@ -72,13 +72,13 @@ Add the platform to your HomeBridge `config.json`, or use the **Settings** UI in
 
 ### Device options
 
-| Option | Required | Default | Description |
-|--------|----------|---------|-------------|
-| `name` | Yes | — | Display name shown in the Home app |
-| `url` | Yes | — | Device IP address, e.g. `http://10.10.0.168`. Port 5123 is added automatically if omitted. |
-| `pin` | First run only | — | 4-digit PIN shown on the device display. After the first successful pairing the session cookie is saved automatically and the PIN is no longer needed. |
-| `pollInterval` | No | `10` | How often (in seconds) to poll the device for status updates. Minimum 5. |
-| `timeout` | No | `10` | HTTP request timeout in seconds. |
+| Option         | Required       | Default | Description                                                                                                                                            |
+| -------------- | -------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `name`         | Yes            | —       | Display name shown in the Home app                                                                                                                     |
+| `url`          | Yes            | —       | Device IP address, e.g. `http://10.10.0.168`. Port 5123 is added automatically if omitted.                                                             |
+| `pin`          | First run only | —       | 4-digit PIN shown on the device display. After the first successful pairing the session cookie is saved automatically and the PIN is no longer needed. |
+| `pollInterval` | No             | `10`    | How often (in seconds) to poll the device for status updates. Minimum 5.                                                                               |
+| `timeout`      | No             | `10`    | HTTP request timeout in seconds.                                                                                                                       |
 
 ---
 
@@ -98,10 +98,10 @@ Once paired, the session cookie is stored in HomeBridge's accessory context and 
 
 Once accessories are added to a room in the Home app, you can use Siri:
 
-- *"Hey Siri, turn on Click Repair"*
-- *"Hey Siri, set Repair Sensitivity to 50%"* (= level 5)
-- *"Hey Siri, turn on Recording"*
-- *"Hey Siri, turn off Noise Reduction in the living room"*
+- _"Hey Siri, turn on Click Repair"_
+- _"Hey Siri, set Repair Sensitivity to 50%"_ (= level 5)
+- _"Hey Siri, turn on Recording"_
+- _"Hey Siri, turn off Noise Reduction in the living room"_
 
 ---
 
@@ -110,15 +110,18 @@ Once accessories are added to a room in the Home app, you can use Siri:
 The accessories work with the Shortcuts app and HomeKit automations. Some useful ideas:
 
 **Start a recording session with one tap:**
+
 1. Turn on Click Repair
 2. Turn on Noise Reduction
 3. Turn on Recording
 
 **Alert when clipping is detected:**
+
 - Trigger: Clipping motion sensor detects motion
 - Action: Send a notification / flash a light
 
 **Timed recording:**
+
 - Trigger: Turn on Recording switch
 - Action: Wait 45 minutes → Turn off Recording switch
 

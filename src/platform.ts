@@ -12,10 +12,10 @@ import {
   Logger,
   PlatformAccessory,
   PlatformConfig,
-} from 'homebridge';
+} from "homebridge";
 
-import { PLUGIN_NAME, PLATFORM_NAME } from './settings';
-import { SugarCubeAccessory, DeviceConfig } from './accessory';
+import { PLUGIN_NAME, PLATFORM_NAME } from "./settings";
+import { SugarCubeAccessory, DeviceConfig } from "./accessory";
 
 export class SugarCubePlatform implements DynamicPlatformPlugin {
   private readonly accessories: Map<string, PlatformAccessory> = new Map();
@@ -26,11 +26,11 @@ export class SugarCubePlatform implements DynamicPlatformPlugin {
     private readonly config: PlatformConfig,
     private readonly api: API,
   ) {
-    this.log.debug('SugarCube platform initialising.');
+    this.log.debug("SugarCube platform initialising.");
 
     // HomeBridge calls configureAccessory() for each cached accessory before
     // the didFinishLaunching event fires. We collect them here then reconcile.
-    this.api.on('didFinishLaunching', () => {
+    this.api.on("didFinishLaunching", () => {
       this.discoverDevices();
     });
   }
@@ -46,10 +46,12 @@ export class SugarCubePlatform implements DynamicPlatformPlugin {
   }
 
   private discoverDevices(): void {
-    const devices: DeviceConfig[] = this.config['devices'] ?? [];
+    const devices: DeviceConfig[] = this.config["devices"] ?? [];
 
     if (devices.length === 0) {
-      this.log.warn('No devices configured. Add devices in the HomeBridge plugin settings.');
+      this.log.warn(
+        "No devices configured. Add devices in the HomeBridge plugin settings.",
+      );
       return;
     }
 
@@ -57,7 +59,9 @@ export class SugarCubePlatform implements DynamicPlatformPlugin {
 
     for (const device of devices) {
       if (!device.name || !device.url) {
-        this.log.error('Device is missing required "name" or "url" field — skipping.');
+        this.log.error(
+          'Device is missing required "name" or "url" field — skipping.',
+        );
         continue;
       }
 
@@ -76,7 +80,9 @@ export class SugarCubePlatform implements DynamicPlatformPlugin {
         this.log.info(`Registering new accessory: ${device.name}`);
         accessory = new this.api.platformAccessory(device.name, uuid);
         this.accessories.set(uuid, accessory);
-        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        this.api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [
+          accessory,
+        ]);
       }
 
       // Retrieve persisted cookie (if any) from accessory context
@@ -109,7 +115,9 @@ export class SugarCubePlatform implements DynamicPlatformPlugin {
           controller.stopPolling();
           this.controllers.delete(uuid);
         }
-        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        this.api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [
+          accessory,
+        ]);
         this.accessories.delete(uuid);
       }
     }

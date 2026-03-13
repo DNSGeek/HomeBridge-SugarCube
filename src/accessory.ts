@@ -23,9 +23,9 @@ import {
   PlatformAccessory,
   Service,
   WithUUID,
-} from 'homebridge';
+} from "homebridge";
 
-import { SugarCubeClient, AudioStatus } from './client';
+import { SugarCubeClient, AudioStatus } from "./client";
 
 // Map 0–100 (HomeKit brightness %) ↔ 1–10 (SugarCube level)
 function brightnessToLevel(brightness: number): number {
@@ -54,12 +54,12 @@ export class SugarCubeAccessory {
 
   // Cached state
   private state = {
-    repairOn:        false,
-    repairSens:      5,
-    denoiseOn:       false,
-    denoiseLevel:    5,
-    recording:       false,
-    clipping:        false,
+    repairOn: false,
+    repairSens: 5,
+    denoiseOn: false,
+    denoiseLevel: 5,
+    recording: false,
+    clipping: false,
   };
 
   private pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -98,16 +98,21 @@ export class SugarCubeAccessory {
     // ── Accessory Information ──────────────────────────────────────
     this.accessory
       .getService(Svc.AccessoryInformation)!
-      .setCharacteristic(Char.Manufacturer, 'SweetVinyl')
-      .setCharacteristic(Char.Model, 'SugarCube')
+      .setCharacteristic(Char.Manufacturer, "SweetVinyl")
+      .setCharacteristic(Char.Model, "SugarCube")
       .setCharacteristic(Char.SerialNumber, this.config.url);
 
     // ── Click Repair Switch ────────────────────────────────────────
-    this.repairSwitch = this.getOrAddService(Svc.Switch, `${name} Click Repair`, 'repair-switch');
-    this.repairSwitch.getCharacteristic(Char.On)
+    this.repairSwitch = this.getOrAddService(
+      Svc.Switch,
+      `${name} Click Repair`,
+      "repair-switch",
+    );
+    this.repairSwitch
+      .getCharacteristic(Char.On)
       .onGet(() => this.state.repairOn)
       .onSet(async (value: CharacteristicValue) => {
-        await this.withErrorLogging('setRepairEnabled', () =>
+        await this.withErrorLogging("setRepairEnabled", () =>
           this.client.setRepairEnabled(value as boolean),
         );
         this.state.repairOn = value as boolean;
@@ -116,34 +121,45 @@ export class SugarCubeAccessory {
       });
 
     // ── Repair Sensitivity Lightbulb ───────────────────────────────
-    this.repairLevel = this.getOrAddService(Svc.Lightbulb, `${name} Repair Sensitivity`, 'repair-level');
-    this.repairLevel.getCharacteristic(Char.On)
+    this.repairLevel = this.getOrAddService(
+      Svc.Lightbulb,
+      `${name} Repair Sensitivity`,
+      "repair-level",
+    );
+    this.repairLevel
+      .getCharacteristic(Char.On)
       .onGet(() => this.state.repairOn)
       .onSet(async (value: CharacteristicValue) => {
         // Toggling the bulb also toggles repair
-        await this.withErrorLogging('setRepairEnabled (from level bulb)', () =>
+        await this.withErrorLogging("setRepairEnabled (from level bulb)", () =>
           this.client.setRepairEnabled(value as boolean),
         );
         this.state.repairOn = value as boolean;
         this.repairSwitch.updateCharacteristic(Char.On, value as boolean);
       });
-    this.repairLevel.getCharacteristic(Char.Brightness)
-      .setProps({ minValue: 0, maxValue: 100, minStep: 11 })  // ~11% steps = 1–10 levels
+    this.repairLevel
+      .getCharacteristic(Char.Brightness)
+      .setProps({ minValue: 0, maxValue: 100, minStep: 11 }) // ~11% steps = 1–10 levels
       .onGet(() => levelToBrightness(this.state.repairSens))
       .onSet(async (value: CharacteristicValue) => {
         const level = brightnessToLevel(value as number);
-        await this.withErrorLogging('setRepairSensitivity', () =>
+        await this.withErrorLogging("setRepairSensitivity", () =>
           this.client.setRepairSensitivity(level),
         );
         this.state.repairSens = level;
       });
 
     // ── Noise Reduction Switch ─────────────────────────────────────
-    this.denoiseSwitch = this.getOrAddService(Svc.Switch, `${name} Noise Reduction`, 'denoise-switch');
-    this.denoiseSwitch.getCharacteristic(Char.On)
+    this.denoiseSwitch = this.getOrAddService(
+      Svc.Switch,
+      `${name} Noise Reduction`,
+      "denoise-switch",
+    );
+    this.denoiseSwitch
+      .getCharacteristic(Char.On)
       .onGet(() => this.state.denoiseOn)
       .onSet(async (value: CharacteristicValue) => {
-        await this.withErrorLogging('setDenoiseEnabled', () =>
+        await this.withErrorLogging("setDenoiseEnabled", () =>
           this.client.setDenoiseEnabled(value as boolean),
         );
         this.state.denoiseOn = value as boolean;
@@ -151,38 +167,49 @@ export class SugarCubeAccessory {
       });
 
     // ── Denoise Level Lightbulb ────────────────────────────────────
-    this.denoiseLevel = this.getOrAddService(Svc.Lightbulb, `${name} Denoise Level`, 'denoise-level');
-    this.denoiseLevel.getCharacteristic(Char.On)
+    this.denoiseLevel = this.getOrAddService(
+      Svc.Lightbulb,
+      `${name} Denoise Level`,
+      "denoise-level",
+    );
+    this.denoiseLevel
+      .getCharacteristic(Char.On)
       .onGet(() => this.state.denoiseOn)
       .onSet(async (value: CharacteristicValue) => {
-        await this.withErrorLogging('setDenoiseEnabled (from level bulb)', () =>
+        await this.withErrorLogging("setDenoiseEnabled (from level bulb)", () =>
           this.client.setDenoiseEnabled(value as boolean),
         );
         this.state.denoiseOn = value as boolean;
         this.denoiseSwitch.updateCharacteristic(Char.On, value as boolean);
       });
-    this.denoiseLevel.getCharacteristic(Char.Brightness)
+    this.denoiseLevel
+      .getCharacteristic(Char.Brightness)
       .setProps({ minValue: 0, maxValue: 100, minStep: 11 })
       .onGet(() => levelToBrightness(this.state.denoiseLevel))
       .onSet(async (value: CharacteristicValue) => {
         const level = brightnessToLevel(value as number);
-        await this.withErrorLogging('setDenoiseLevel', () =>
+        await this.withErrorLogging("setDenoiseLevel", () =>
           this.client.setDenoiseLevel(level),
         );
         this.state.denoiseLevel = level;
       });
 
     // ── Recording Switch ───────────────────────────────────────────
-    this.recordingSwitch = this.getOrAddService(Svc.Switch, `${name} Recording`, 'recording-switch');
-    this.recordingSwitch.getCharacteristic(Char.On)
+    this.recordingSwitch = this.getOrAddService(
+      Svc.Switch,
+      `${name} Recording`,
+      "recording-switch",
+    );
+    this.recordingSwitch
+      .getCharacteristic(Char.On)
       .onGet(() => this.state.recording)
       .onSet(async (value: CharacteristicValue) => {
         if (value as boolean) {
-          await this.withErrorLogging('startRecording', () =>
+          await this.withErrorLogging("startRecording", () =>
             this.client.startRecording(),
           );
         } else {
-          await this.withErrorLogging('stopRecording', () =>
+          await this.withErrorLogging("stopRecording", () =>
             this.client.stopRecording(),
           );
         }
@@ -191,9 +218,12 @@ export class SugarCubeAccessory {
 
     // ── Clipping Motion Sensor ─────────────────────────────────────
     this.clippingSensor = this.getOrAddService(
-      Svc.MotionSensor, `${name} Clipping`, 'clipping-sensor',
+      Svc.MotionSensor,
+      `${name} Clipping`,
+      "clipping-sensor",
     );
-    this.clippingSensor.getCharacteristic(Char.MotionDetected)
+    this.clippingSensor
+      .getCharacteristic(Char.MotionDetected)
       .onGet(() => this.state.clipping);
   }
 
@@ -237,14 +267,16 @@ export class SugarCubeAccessory {
         this.log.info(`[${this.config.name}] Paired with PIN successfully.`);
         this.saveCookieIfPresent();
       } else {
-        this.log.error(`[${this.config.name}] Pairing failed — check your PIN.`);
+        this.log.error(
+          `[${this.config.name}] Pairing failed — check your PIN.`,
+        );
       }
       return;
     }
 
     this.log.warn(
       `[${this.config.name}] No cookie and no PIN configured. ` +
-      `Add a "pin" to the device config in HomeBridge.`,
+        `Add a "pin" to the device config in HomeBridge.`,
     );
   }
 
@@ -289,17 +321,20 @@ export class SugarCubeAccessory {
       status = await this.client.getAudioStatus();
     } catch (err) {
       // Session may have expired — try re-authenticating once
-      this.log.debug(`[${this.config.name}] getAudioStatus failed, re-authenticating:`, err);
-      this.client.setCookie('');
+      this.log.debug(
+        `[${this.config.name}] getAudioStatus failed, re-authenticating:`,
+        err,
+      );
+      this.client.setCookie("");
       await this.authenticate();
       status = await this.client.getAudioStatus();
     }
 
-    const repairOn   = status.audio === 'SOUND_OUT';
-    const denoiseOn  = status.dnout === 'SOUND_OUT';
-    const recording  = status.recording_state === 'recording';
+    const repairOn = status.audio === "SOUND_OUT";
+    const denoiseOn = status.dnout === "SOUND_OUT";
+    const recording = status.recording_state === "recording";
     const repairSens = Math.round(status.sensitivity);
-    const dnLevel    = Math.round(status.last_dnlevel);
+    const dnLevel = Math.round(status.last_dnlevel);
 
     // Only push updates when values have actually changed
     if (repairOn !== this.state.repairOn) {
@@ -309,7 +344,10 @@ export class SugarCubeAccessory {
     }
     if (repairSens !== this.state.repairSens) {
       this.state.repairSens = repairSens;
-      this.repairLevel.updateCharacteristic(Char.Brightness, levelToBrightness(repairSens));
+      this.repairLevel.updateCharacteristic(
+        Char.Brightness,
+        levelToBrightness(repairSens),
+      );
     }
     if (denoiseOn !== this.state.denoiseOn) {
       this.state.denoiseOn = denoiseOn;
@@ -318,7 +356,10 @@ export class SugarCubeAccessory {
     }
     if (dnLevel !== this.state.denoiseLevel) {
       this.state.denoiseLevel = dnLevel;
-      this.denoiseLevel.updateCharacteristic(Char.Brightness, levelToBrightness(dnLevel));
+      this.denoiseLevel.updateCharacteristic(
+        Char.Brightness,
+        levelToBrightness(dnLevel),
+      );
     }
     if (recording !== this.state.recording) {
       this.state.recording = recording;
@@ -329,7 +370,7 @@ export class SugarCubeAccessory {
   private async updateFromClipping(): Promise<void> {
     const { Characteristic: Char } = this.api.hap;
 
-    const clip    = await this.client.getClipping();
+    const clip = await this.client.getClipping();
     const clipping = !!clip.html;
 
     if (clipping !== this.state.clipping) {
@@ -345,7 +386,10 @@ export class SugarCubeAccessory {
   // Helpers
   // ------------------------------------------------------------------
 
-  private async withErrorLogging(label: string, fn: () => Promise<void>): Promise<void> {
+  private async withErrorLogging(
+    label: string,
+    fn: () => Promise<void>,
+  ): Promise<void> {
     try {
       await fn();
     } catch (err) {
