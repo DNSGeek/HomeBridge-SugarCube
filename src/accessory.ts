@@ -25,7 +25,7 @@ import {
   WithUUID,
 } from "homebridge";
 
-import { SugarCubeClient, AudioStatus } from "./client";
+import { SugarCubeClient, AudioStatus, isValidAudioStatus } from "./client";
 
 // Map 0–100 (HomeKit brightness %) ↔ 1–10 (SugarCube level)
 function brightnessToLevel(brightness: number): number {
@@ -40,6 +40,11 @@ function levelToBrightness(level: number): number {
   }
   return Math.round(Math.max(0, Math.min(level, 10)) * 10);
 }
+
+// How many consecutive poll failures before we attempt a reboot
+const REBOOT_THRESHOLD = 5;
+// How long to wait after a reboot before resuming normal polls (ms)
+const REBOOT_GRACE_PERIOD_MS = 120_000;
 
 export interface DeviceConfig {
   name: string;
@@ -71,6 +76,10 @@ export class SugarCubeAccessory {
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private readonly client: SugarCubeClient;
   private readonly pollInterval: number;
+
+  // Failure tracking for auto-reboot
+  private consecutiveFailures = 0;
+  private rebootInProgress = false;
 
   constructor(
     private readonly log: Logger,
@@ -311,20 +320,69 @@ export class SugarCubeAccessory {
   }
 
   private async poll(): Promise<void> {
+    // Skip polls while a reboot is in progress; the grace period timer
+    // will clear this flag once the device should be back up.
+    if (this.rebootInProgress) {
+      this.log.debug(`[${this.config.name}] Poll skipped — reboot in progress.`);
+      return;
+    }
+
     try {
       await this.updateFromAudioStatus();
       await this.updateFromClipping();
+      // Successful poll — reset the failure counter
+      if (this.consecutiveFailures > 0) {
+        this.log.info(
+          `[${this.config.name}] Device recovered after ${this.consecutiveFailures} failed poll(s).`,
+        );
+        this.consecutiveFailures = 0;
+      }
     } catch (err) {
-      this.log.debug(`[${this.config.name}] Poll error:`, err);
+      this.consecutiveFailures++;
+      this.log.warn(
+        `[${this.config.name}] Poll failed (${this.consecutiveFailures}/${REBOOT_THRESHOLD}):`,
+        err,
+      );
+      if (this.consecutiveFailures >= REBOOT_THRESHOLD) {
+        await this.attemptReboot();
+      }
     }
+  }
+
+  private async attemptReboot(): Promise<void> {
+    this.log.warn(
+      `[${this.config.name}] Device unresponsive for ${this.consecutiveFailures} consecutive polls — attempting reboot.`,
+    );
+    this.rebootInProgress = true;
+    this.consecutiveFailures = 0;
+
+    try {
+      await this.client.reboot();
+      this.log.info(
+        `[${this.config.name}] Reboot command sent. Pausing polls for ${REBOOT_GRACE_PERIOD_MS / 1000}s.`,
+      );
+    } catch (err) {
+      // The device may already be too wedged to respond — not unusual.
+      this.log.warn(
+        `[${this.config.name}] Reboot command failed (device may already be restarting):`,
+        err,
+      );
+    }
+
+    // Resume polling after the grace period regardless of whether the
+    // reboot command succeeded — the device may have self-recovered.
+    setTimeout(() => {
+      this.log.info(`[${this.config.name}] Grace period over — resuming polls.`);
+      this.rebootInProgress = false;
+    }, REBOOT_GRACE_PERIOD_MS);
   }
 
   private async updateFromAudioStatus(): Promise<void> {
     const { Characteristic: Char } = this.api.hap;
 
-    let status: AudioStatus;
+    let raw: unknown;
     try {
-      status = await this.client.getAudioStatus();
+      raw = await this.client.getAudioStatus();
     } catch (err) {
       // Session may have expired — try re-authenticating once
       this.log.debug(
@@ -333,9 +391,22 @@ export class SugarCubeAccessory {
       );
       this.client.setCookie("");
       await this.authenticate();
-      status = await this.client.getAudioStatus();
+      raw = await this.client.getAudioStatus();
     }
 
+    // Validate the response before trusting any of its values.
+    // If the SugarCube API is in a funky state it may return an empty
+    // object, partial data, or non-numeric values — all of which would
+    // corrupt our state. We keep serving the last-known-good cache instead.
+    if (!isValidAudioStatus(raw)) {
+      this.log.warn(
+        `[${this.config.name}] getAudioStatus returned invalid data — ` +
+          `retaining last-known-good state. Raw: ${JSON.stringify(raw)}`,
+      );
+      throw new Error("Invalid AudioStatus response");
+    }
+
+    const status = raw;
     const repairOn = status.audio === "SOUND_OUT";
     const denoiseOn = status.dnout === "SOUND_OUT";
     const recording = status.recording_state === "recording";
@@ -377,6 +448,15 @@ export class SugarCubeAccessory {
     const { Characteristic: Char } = this.api.hap;
 
     const clip = await this.client.getClipping();
+
+    // Guard against a non-object response from a wedged API
+    if (!clip || typeof clip !== "object") {
+      this.log.warn(
+        `[${this.config.name}] getClipping returned invalid data — retaining last-known-good state.`,
+      );
+      throw new Error("Invalid ClippingStatus response");
+    }
+
     const clipping = !!clip.html;
 
     if (clipping !== this.state.clipping) {

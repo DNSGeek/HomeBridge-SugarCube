@@ -49,6 +49,26 @@ export interface ClippingStatus {
   html: string; // non-empty string when clipping is active
 }
 
+/**
+ * Returns true if the AudioStatus response looks like a real device response
+ * rather than an empty object, error page, or partial data from a wedged API.
+ */
+export function isValidAudioStatus(s: unknown): s is AudioStatus {
+  if (!s || typeof s !== "object") return false;
+  const obj = s as Record<string, unknown>;
+  return (
+    typeof obj["audio"] === "string" &&
+    obj["audio"].length > 0 &&
+    typeof obj["dnout"] === "string" &&
+    obj["dnout"].length > 0 &&
+    typeof obj["sensitivity"] === "number" &&
+    !isNaN(obj["sensitivity"] as number) &&
+    typeof obj["last_dnlevel"] === "number" &&
+    !isNaN(obj["last_dnlevel"] as number) &&
+    typeof obj["recording_state"] === "string"
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Client
 // ---------------------------------------------------------------------------
@@ -277,5 +297,19 @@ export class SugarCubeClient {
 
   async clearClipping(): Promise<void> {
     await this.post("/api/v1/clippingchange", { action: "clear" });
+  }
+
+  // ------------------------------------------------------------------
+  // Device management
+  // ------------------------------------------------------------------
+
+  /**
+   * Trigger a device reboot via the settings-update endpoint.
+   * The device will be unreachable for ~30–60 seconds after this call.
+   */
+  async reboot(): Promise<void> {
+    await this.request<unknown>("POST", "/api/v1/settings-update", undefined, {
+      reboot: "true",
+    });
   }
 }
