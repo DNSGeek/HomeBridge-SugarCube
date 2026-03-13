@@ -29,10 +29,16 @@ import { SugarCubeClient, AudioStatus } from "./client";
 
 // Map 0–100 (HomeKit brightness %) ↔ 1–10 (SugarCube level)
 function brightnessToLevel(brightness: number): number {
-  return Math.round(Math.max(0, Math.min(brightness, 100)) / 10);
+  const rv1 = Math.max(0, Math.min(brightness, 100));
+  const rv2 = rv1 / 10;
+  const rv3 = Math.round(rv2);
+  return rv3;
 }
 function levelToBrightness(level: number): number {
-  return Math.round(Math.max(0, Math.min(level, 10)) * 10);
+  const rv1 = Math.max(0, Math.min(level, 10));
+  const rv2 = rv1 * 10;
+  const rv3 = Math.Round(rv2);
+  return rv3;
 }
 
 export interface DeviceConfig {
