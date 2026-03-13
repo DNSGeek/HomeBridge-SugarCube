@@ -37,6 +37,7 @@ function brightnessToLevel(brightness: number): number {
 function levelToBrightness(level: number): number {
     if (typeof level !== 'number' || isNaN(level)) {
         return 0;
+    }
     return Math.round(Math.max(0, Math.min(level, 10)) * 10);
 }
 
