@@ -25,7 +25,7 @@ import {
   WithUUID,
 } from "homebridge";
 
-import { SugarCubeClient, AudioStatus, isValidAudioStatus } from "./client";
+import { SugarCubeClient, isValidAudioStatus } from "./client";
 
 // Map 0–100 (HomeKit brightness %) ↔ 1–10 (SugarCube level)
 function brightnessToLevel(brightness: number): number {
