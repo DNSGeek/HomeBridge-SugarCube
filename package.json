@@ -1,10 +1,16 @@
 {
   "name": "homebridge-sugarcube",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "HomeBridge plugin for SweetVinyl SugarCube vinyl restoration devices",
   "license": "MIT",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "config.schema.json",
+    "LICENSE.md",
+    "README.md"
+  ],
   "keywords": [
     "homebridge-plugin",
     "sugarcube",
