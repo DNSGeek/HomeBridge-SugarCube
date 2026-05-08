@@ -36,6 +36,8 @@ function levelToBrightness(level) {
 const REBOOT_THRESHOLD = 5;
 // How long to wait after a reboot before resuming normal polls (ms)
 const REBOOT_GRACE_PERIOD_MS = 120000;
+// Minimum interval between re-pair attempts so we don't hammer a stuck device
+const REPAIR_THROTTLE_MS = 60000;
 class SugarCubeAccessory {
     constructor(log, config, accessory, api, savedCookie, onCookieSaved) {
         this.log = log;
@@ -56,6 +58,7 @@ class SugarCubeAccessory {
         // Failure tracking for auto-reboot
         this.consecutiveFailures = 0;
         this.rebootInProgress = false;
+        this.lastRepairAttempt = 0;
         this.pollInterval = (config.pollInterval ?? 10) * 1000;
         this.client = new client_1.SugarCubeClient(config.url, log, config.timeout ?? 10);
         if (savedCookie) {
@@ -202,6 +205,24 @@ class SugarCubeAccessory {
             this.onCookieSaved(cookie);
         }
     }
+    /**
+     * Force a re-pair: clears the current cookie and runs the auth flow again.
+     * Throttled to one attempt per REPAIR_THROTTLE_MS so a device that is
+     * genuinely down doesn't get hammered with pair requests every poll.
+     * Returns true if we now have a cookie (regardless of throttling).
+     */
+    async tryRepair(reason) {
+        const now = Date.now();
+        if (now - this.lastRepairAttempt < REPAIR_THROTTLE_MS) {
+            this.log.debug(`[${this.config.name}] Re-pair throttled (last attempt ${Math.round((now - this.lastRepairAttempt) / 1000)}s ago).`);
+            return !!this.client.getCookie();
+        }
+        this.lastRepairAttempt = now;
+        this.log.info(`[${this.config.name}] Re-pairing with device (${reason}).`);
+        this.client.setCookie("");
+        await this.authenticate();
+        return !!this.client.getCookie();
+    }
     // ------------------------------------------------------------------
     // Polling
     // ------------------------------------------------------------------
@@ -241,16 +262,44 @@ class SugarCubeAccessory {
         }
     }
     async attemptReboot() {
-        this.log.warn(`[${this.config.name}] Device unresponsive for ${this.consecutiveFailures} consecutive polls — attempting reboot.`);
-        this.rebootInProgress = true;
+        this.log.warn(`[${this.config.name}] Device unresponsive for ${this.consecutiveFailures} consecutive polls — attempting recovery.`);
         this.consecutiveFailures = 0;
+        // Refresh credentials first — the failures may simply be due to a
+        // dropped session, in which case reboot would 403 anyway. Bypass the
+        // throttle here so we always get a fresh attempt before resorting
+        // to a reboot.
+        this.lastRepairAttempt = 0;
+        await this.tryRepair("pre-reboot credential refresh");
+        // Probe with a single audio status request. If the device responds
+        // with valid data after the re-pair, the failures were just auth
+        // and a reboot isn't needed — let normal polling resume.
+        try {
+            const probe = await this.client.getAudioStatus();
+            if ((0, client_1.isValidAudioStatus)(probe)) {
+                this.log.info(`[${this.config.name}] Device responded with valid data after re-pair — skipping reboot.`);
+                return;
+            }
+            this.log.warn(`[${this.config.name}] Re-pair did not restore valid data (got: ${JSON.stringify(probe)}) — proceeding with reboot.`);
+        }
+        catch (err) {
+            this.log.warn(`[${this.config.name}] Probe after re-pair still failing — proceeding with reboot:`, err);
+        }
+        this.rebootInProgress = true;
         try {
             await this.client.reboot();
             this.log.info(`[${this.config.name}] Reboot command sent. Pausing polls for ${REBOOT_GRACE_PERIOD_MS / 1000}s.`);
         }
         catch (err) {
-            // The device may already be too wedged to respond — not unusual.
-            this.log.warn(`[${this.config.name}] Reboot command failed (device may already be restarting):`, err);
+            if (err instanceof client_1.HTTPError &&
+                (err.status === 401 || err.status === 403)) {
+                this.log.warn(`[${this.config.name}] Reboot rejected with HTTP ${err.status} — ` +
+                    `device is rejecting our credentials even after re-pair. ` +
+                    `Manual intervention may be required.`);
+            }
+            else {
+                // The device may already be too wedged to respond — not unusual.
+                this.log.warn(`[${this.config.name}] Reboot command failed (device may already be restarting):`, err);
+            }
         }
         // Resume polling after the grace period regardless of whether the
         // reboot command succeeded — the device may have self-recovered.
@@ -266,20 +315,36 @@ class SugarCubeAccessory {
             raw = await this.client.getAudioStatus();
         }
         catch (err) {
-            // Session may have expired — try re-authenticating once
-            this.log.debug(`[${this.config.name}] getAudioStatus failed, re-authenticating:`, err);
-            this.client.setCookie("");
-            await this.authenticate();
-            raw = await this.client.getAudioStatus();
+            // 401/403 means the device dropped our session — re-pair and retry.
+            // Other errors (timeouts, 5xx, network) we just bubble up so the
+            // poll-failure counter and reboot path can handle them.
+            if (err instanceof client_1.HTTPError &&
+                (err.status === 401 || err.status === 403)) {
+                this.log.warn(`[${this.config.name}] HTTP ${err.status} on getAudioStatus — pairing lost.`);
+                await this.tryRepair(`HTTP ${err.status} on getAudioStatus`);
+                raw = await this.client.getAudioStatus();
+            }
+            else {
+                throw err;
+            }
         }
         // Validate the response before trusting any of its values.
-        // If the SugarCube API is in a funky state it may return an empty
-        // object, partial data, or non-numeric values — all of which would
-        // corrupt our state. We keep serving the last-known-good cache instead.
+        // An empty object or partial data usually means the device silently
+        // invalidated our session (returns 200 with {} instead of 403). Try a
+        // re-pair before giving up; if that doesn't recover real data, retain
+        // the last-known-good cache.
         if (!(0, client_1.isValidAudioStatus)(raw)) {
             this.log.warn(`[${this.config.name}] getAudioStatus returned invalid data — ` +
-                `retaining last-known-good state. Raw: ${JSON.stringify(raw)}`);
-            throw new Error("Invalid AudioStatus response");
+                `attempting re-pair. Raw: ${JSON.stringify(raw)}`);
+            if (await this.tryRepair("invalid AudioStatus response")) {
+                raw = await this.client.getAudioStatus();
+            }
+            if (!(0, client_1.isValidAudioStatus)(raw)) {
+                this.log.warn(`[${this.config.name}] Re-pair did not recover valid data — ` +
+                    `retaining last-known-good state.`);
+                throw new Error("Invalid AudioStatus response");
+            }
+            this.log.info(`[${this.config.name}] Re-pair successful, data restored.`);
         }
         const status = raw;
         const repairOn = status.audio === "SOUND_OUT";

@@ -6,7 +6,7 @@
  * Mirrors the Python sugarcube_client.py implementation.
  */
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.SugarCubeClient = void 0;
+exports.SugarCubeClient = exports.HTTPError = void 0;
 exports.isValidAudioStatus = isValidAudioStatus;
 // node-fetch v3 is ESM-only; we use a dynamic import wrapped in a helper.
 // This keeps the rest of the file in CommonJS-compatible sync style.
@@ -19,6 +19,24 @@ async function getFetch() {
     }
     return _fetch;
 }
+// ---------------------------------------------------------------------------
+// Errors
+// ---------------------------------------------------------------------------
+/**
+ * Thrown for any non-2xx HTTP response. Exposes the status code so callers
+ * can distinguish auth failures (401/403) from other errors and trigger a
+ * re-pair instead of a reboot.
+ */
+class HTTPError extends Error {
+    constructor(status, statusText, url) {
+        super(`HTTP ${status} ${statusText} — ${url}`);
+        this.status = status;
+        this.statusText = statusText;
+        this.url = url;
+        this.name = "HTTPError";
+    }
+}
+exports.HTTPError = HTTPError;
 /**
  * Returns true if the AudioStatus response looks like a real device response
  * rather than an empty object, error page, or partial data from a wedged API.
@@ -106,7 +124,7 @@ class SugarCubeClient {
                 }
             }
             if (!res.ok) {
-                throw new Error(`HTTP ${res.status} ${res.statusText} — ${fullUrl}`);
+                throw new HTTPError(res.status, res.statusText, fullUrl);
             }
             const text = await res.text();
             try {
