@@ -322,9 +322,7 @@ export class SugarCubeAccessory {
       return !!this.client.getCookie();
     }
     this.lastRepairAttempt = now;
-    this.log.info(
-      `[${this.config.name}] Re-pairing with device (${reason}).`,
-    );
+    this.log.info(`[${this.config.name}] Re-pairing with device (${reason}).`);
     this.client.setCookie("");
     await this.authenticate();
     return !!this.client.getCookie();
