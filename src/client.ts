@@ -22,6 +22,26 @@ async function getFetch() {
 }
 
 // ---------------------------------------------------------------------------
+// Errors
+// ---------------------------------------------------------------------------
+
+/**
+ * Thrown for any non-2xx HTTP response. Exposes the status code so callers
+ * can distinguish auth failures (401/403) from other errors and trigger a
+ * re-pair instead of a reboot.
+ */
+export class HTTPError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly statusText: string,
+    public readonly url: string,
+  ) {
+    super(`HTTP ${status} ${statusText} — ${url}`);
+    this.name = "HTTPError";
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
@@ -167,7 +187,7 @@ export class SugarCubeClient {
       }
 
       if (!res.ok) {
-        throw new Error(`HTTP ${res.status} ${res.statusText} — ${fullUrl}`);
+        throw new HTTPError(res.status, res.statusText, fullUrl);
       }
 
       const text = await res.text();

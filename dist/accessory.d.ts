@@ -41,6 +41,7 @@ export declare class SugarCubeAccessory {
     private readonly pollInterval;
     private consecutiveFailures;
     private rebootInProgress;
+    private lastRepairAttempt;
     constructor(log: Logger, config: DeviceConfig, accessory: PlatformAccessory, api: API, savedCookie?: string, onCookieSaved?: ((cookie: string) => void) | undefined);
     private setupServices;
     /**
@@ -50,6 +51,13 @@ export declare class SugarCubeAccessory {
     private getOrAddService;
     private authenticate;
     private saveCookieIfPresent;
+    /**
+     * Force a re-pair: clears the current cookie and runs the auth flow again.
+     * Throttled to one attempt per REPAIR_THROTTLE_MS so a device that is
+     * genuinely down doesn't get hammered with pair requests every poll.
+     * Returns true if we now have a cookie (regardless of throttling).
+     */
+    private tryRepair;
     private startPolling;
     stopPolling(): void;
     private poll;

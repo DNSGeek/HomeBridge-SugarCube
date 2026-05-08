@@ -5,6 +5,17 @@
  * Mirrors the Python sugarcube_client.py implementation.
  */
 import { Logger } from "homebridge";
+/**
+ * Thrown for any non-2xx HTTP response. Exposes the status code so callers
+ * can distinguish auth failures (401/403) from other errors and trigger a
+ * re-pair instead of a reboot.
+ */
+export declare class HTTPError extends Error {
+    readonly status: number;
+    readonly statusText: string;
+    readonly url: string;
+    constructor(status: number, statusText: string, url: string);
+}
 export interface AudioStatus {
     audio_route: string;
     audio: string;
