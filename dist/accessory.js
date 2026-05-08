@@ -262,7 +262,7 @@ class SugarCubeAccessory {
         }
     }
     async attemptReboot() {
-        this.log.warn(`[${this.config.name}] Device unresponsive for ${this.consecutiveFailures} consecutive polls — attempting reboot.`);
+        this.log.warn(`[${this.config.name}] Device unresponsive for ${this.consecutiveFailures} consecutive polls — attempting recovery.`);
         this.consecutiveFailures = 0;
         // Refresh credentials first — the failures may simply be due to a
         // dropped session, in which case reboot would 403 anyway. Bypass the
@@ -270,6 +270,20 @@ class SugarCubeAccessory {
         // to a reboot.
         this.lastRepairAttempt = 0;
         await this.tryRepair("pre-reboot credential refresh");
+        // Probe with a single audio status request. If the device responds
+        // with valid data after the re-pair, the failures were just auth
+        // and a reboot isn't needed — let normal polling resume.
+        try {
+            const probe = await this.client.getAudioStatus();
+            if ((0, client_1.isValidAudioStatus)(probe)) {
+                this.log.info(`[${this.config.name}] Device responded with valid data after re-pair — skipping reboot.`);
+                return;
+            }
+            this.log.warn(`[${this.config.name}] Re-pair did not restore valid data (got: ${JSON.stringify(probe)}) — proceeding with reboot.`);
+        }
+        catch (err) {
+            this.log.warn(`[${this.config.name}] Probe after re-pair still failing — proceeding with reboot:`, err);
+        }
         this.rebootInProgress = true;
         try {
             await this.client.reboot();
